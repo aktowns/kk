@@ -1,19 +1,44 @@
-# KK - a simple typesafe compile-to-yaml language that supports the C preprocessor
+# KK - a simple typesafe compile-to-yaml language
 # This example is a kubernetes pod
 
-%define metaName name =
-  MetaObj { name = $name }
+%template MetaObj {
+  name   : String
+  labels : {String}
+}
 
-%include "kubernetes.kk"
+%template PodSpec {
+  containers   : [Image]
+  retartPolicy : String
+}
 
-Pod { 
-  metadata = %metaName("busybox")
-  spec     = PodSpec { 
-    containers = [ Image { image   = "busybox"
-                           command = ["sleep"]
-                           imagePullPolicy = "IfNotPresent"
-                           name = "busybox"
-                         }
-                 ]
+%template Image {
+  image           : String
+  command         : [String]
+  imagePullPolicy : String
+  name            : String
+}
+
+%template Pod {
+  kind     = "Pod"
+  metadata : MetaObj
+  spec     : PodSpec
+}
+
+# An example function, that generates an image block
+%define image(name, commands) =
+  Image { image = $name
+          command = $commands
+          imagePullPolicy = "IfNotPresent"
+          name = $name
+        }
+
+# Lets make a pod
+Pod {
+  metadata = MetaObj { name   = "busybox"
+                       labels = { app: "busybox" }
+                     }
+  spec     = PodSpec {
+    containers = [ %image("busybox", ["sleep", "3600"]) ]
+    restartPolicy = "Always"
   }
 }
