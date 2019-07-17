@@ -5,20 +5,28 @@ import           Data.Text    (Text)
 import qualified Data.Text    as T
 import qualified Data.Text.IO as T
 import           Data.Void
-import           Text.Megaparsec
+import           Text.Megaparsec hiding (State)
 import           Text.Megaparsec.Char
 import           Data.Maybe (catMaybes, fromMaybe)
 import qualified Text.Megaparsec.Char.Lexer as L
 import           Debug.Trace (trace)
 import           Text.Megaparsec.Debug
+import           Control.Monad.State.Lazy (State, gets, modify)
 
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Vector as V
 import qualified Data.Aeson as A
 
-data KTemplateField = N Node | T Type deriving (Show)
+data KTemplateField = N Node
+                    | T Type
+                    deriving (Show)
 
-data Type = TString | TNumber | THash Type | TArray Type | TObject Text deriving (Show)
+data Type = TString
+          | TNumber
+          | THash Type
+          | TArray Type
+          | TObject Text
+          deriving (Show)
 
 data Node = KObject Text ![(Text, Node)]
           | KList ![Node]
@@ -36,23 +44,31 @@ data Ctx = Ctx { env :: HM.HashMap Text ([Text], Node)
                , var :: HM.HashMap Text Node 
                } deriving (Show)
 
+type KK = State Ctx
+
 emptyCtx :: Ctx
 emptyCtx = Ctx { env = HM.empty, var = HM.empty }
 
-envInsert :: Ctx -> Text -> [Text] -> Node -> Ctx
-envInsert Ctx{..} n a b = Ctx { env = HM.insert n (a, b) env, var = var }
+envInsert :: Text -> ([Text], Node) -> KK ()
+envInsert n a = do
+    e <- gets env
+    modify (\s -> s {env = HM.insert n a e})
 
-envGet :: Ctx -> Text -> ([Text], Node)
-envGet Ctx{..} n = fromMaybe (error $ show n ++ " is not defined") (HM.lookup n env)
-        
-varGet :: Ctx -> Text -> Node
-varGet Ctx{..} n = fromMaybe (error $ show n ++ " is not defined") (HM.lookup n var)
+envGet :: Text -> KK ([Text], Node)
+envGet n = do
+    e <- gets env
+    return $ fromMaybe (error $ show n ++ " is not defined") (HM.lookup n e)
 
-envApply :: Ctx -> Text -> [Node] -> Maybe Node
-envApply ctx n a = 
-    let (a', n') = envGet ctx n
-        e        = ctx { var = HM.fromList $ zip a' a }
-    in snd $ reduce e n'
+varGet :: Text -> KK Node
+varGet n = do
+    v <- gets var
+    return $ fromMaybe (error $ show n ++ " is not defined") (HM.lookup n v)
+
+envApply :: Text -> [Node] -> KK (Maybe Node)
+envApply n a = do
+    (a', n') <- envGet n
+    let e = ctx { var = HM.fromList $ zip a' a }
+    return $ snd $ reduce e n'
     
 evTup :: [(Text, Node)] -> [(Text, A.Value)]
 evTup = map (\(x, y) -> (x, toValue y))

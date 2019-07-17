@@ -27,6 +27,7 @@ library
                      , unordered-containers
                      , vector
                      , string-conv
+                     , mtl
   hs-source-dirs:      src
   default-language:    Haskell2010
 
@@ -36,5 +37,6 @@ executable kk
   -- other-extensions:
   build-depends:       base ^>=4.12.0.0
                      , kk
+                     , cmdargs
   hs-source-dirs:      app
   default-language:    Haskell2010
