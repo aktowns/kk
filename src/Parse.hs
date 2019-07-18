@@ -12,7 +12,7 @@ import           Data.Void
 import           Control.Monad (join)
 import           Data.String.Conv (toS)
 
-import Node
+import           Node
 
 type Parser = Parsec Void Text
 
@@ -162,12 +162,12 @@ kNodeTemplateField = lexeme $ do
     body <- kValue
     return (name, N body)
 
-kArrayType :: Parser Type
-kArrayType = lexeme $ do
+kListType :: Parser Type
+kListType = lexeme $ do
     _ <- lblock
     ty <- kType
     _ <- rblock
-    return $ TArray ty
+    return $ TList ty
 
 kHashType :: Parser Type
 kHashType = lexeme $ do
@@ -179,9 +179,9 @@ kHashType = lexeme $ do
 kType :: Parser Type
 kType  = (TString <$ symbol "String")
      <|> (TNumber <$ symbol "Number")
-     <|> kArrayType
+     <|> kListType
      <|> kHashType
-     <|> (TObject <$> kIdentifier)
+     <|> (TObjectRef <$> kIdentifier)
 
 kTypeTemplateField :: Parser (Text, KTemplateField)
 kTypeTemplateField = lexeme $ do

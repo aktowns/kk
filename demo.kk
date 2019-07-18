@@ -13,13 +13,11 @@
 
 # Lets make a pod
 Pod {
-  metadata = MetaObj { name   = %join([ "busybox"
-                                      , "another line"
-                                      ])
+  metadata = MetaObj { name   = "busybox"
                        labels = { app: "busybox" }
                      }
   spec     = PodSpec {
-    containers = [ %image("busybox", ["sleep", "3600"]) ]
+    containers = [ %image("busybox", ["sleep", 3600.0]) ]
     restartPolicy = "Always"
   }
 }

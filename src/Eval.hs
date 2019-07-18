@@ -9,7 +9,7 @@ import           Data.Bitraversable  (bitraverse)
 
 import           Control.Monad.State.Lazy (State, gets, get, modify, evalState, runState)
 
-import Node
+import           Node
 
 data Ctx = Ctx { env :: HashMap Text ([Text], Node)
                , var :: HashMap Text Node 

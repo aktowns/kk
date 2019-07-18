@@ -1,74 +1,25 @@
 module Type where
 
-import Node
+import           Data.Text        (Text)
+import qualified Data.Set as Set
+import           Control.Monad.State.Lazy (State, gets, get, modify, evalState, runState)
+import           Data.HashMap.Strict (HashMap)
+import qualified Data.HashMap.Strict as HM
 
--- Defining Types 
--- %template is used to define a type, for example a kubernetes pod could be represented as 
---
--- %template MetaObj { name : String, labels : {String} }
--- %template PodSpec { containers : [Image], retartPolicy : String }
--- %template Image { image : String, command : [String], imagePullPolicy : String, name : String }
--- %template Pod { metadata : MetaObj, spec : PodSpec }
--- 
--- and we can instantiate a type by providing it as an object name 
---
--- MetaObj { name = "my-awesome-pod", labels = ["awesome"] }
---
--- in this case would compile to 
--- 
---      name: my-awesome-pod
---      labels: 
---      - awesome
---
--- providing an invalid type for the object will result in a compile error.
---
--- along with enforcing types we can also provide hardcoded output for the resulting object
--- for example
---
--- %template User { type = "User", firstName: String }
--- 
--- then create a User object 
---
--- User { firstName = "Ashley" }
---
--- which results in
---
---      type: User
---      firstName: Ashley
--- 
+import           Node
 
--- Intersection types 
--- We support intersection types for object building, that is to say
--- 
--- %template A { firstName : String }
--- %template B { lastName  : String }
--- 
--- %template C = A & B  
--- 
--- would be the equivelent of 
--- 
--- %template C { firstName : String, lastName : String }
---
--- and consist of the type `A & B`
+type KKTy = State (HashMap Text Node)
 
--- Union types 
--- We support union types aswell, for example we can have a Hash that contains either strings 
--- or numbers represented as {String|Number} or a list of Strings and Bools as [String|Bool]
 
--- Optionality 
--- Optionality is represented as ? for example 
--- 
--- %template A { firstName : String? }
--- 
--- Optional fields are removed from the compiled output if a value is not provided. 
--- We can also provide a default value for an optional field like 
--- 
--- %template A { firstName : String?("Bob") }
--- %template B { hasSuperPowers : Bool?(false) }
-
--- infer :: Node -> Type
--- infer (KString _)   = TString
--- infer (KNumber _)   = TNumber
--- infer (KList xs)    = TUnion $ map infer xs
--- infer (KHash xs)    = TUnion $ map (\(_, x) -> infer x) xs
--- infer (KObject n _) = TObject n $ TIntersection $ map (\(_, x) -> infer x) xs
+infer :: Node -> Type
+infer (KString _)    = TString
+infer (KNumber _)    = TNumber
+infer (KList xs)     = 
+  let ts = Set.fromList $ map infer xs 
+      el = if Set.size ts > 1 then TUnion ts else Set.elemAt 0 ts
+  in TList el
+infer (KHash xs)     = 
+  let ts = Set.fromList $ map (infer . snd) xs 
+      el = if Set.size ts > 1 then TUnion ts else Set.elemAt 0 ts
+  in THash el
+infer (KObject n xs) = TObject n $ TIntersection $ Set.fromList $ map (\(n, x) -> (n, infer x)) xs
