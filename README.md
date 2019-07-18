@@ -1,5 +1,22 @@
 ## kk 
 
+    kk v0.0.0, (C) Ashley Towns
+  
+    kk [OPTIONS] IN FILE
+      to yaml or json configuration compiler
+  
+    Common flags:
+         --outfile=OUT FILE     File to output, defaults to stdout
+         --outformat=YAML|JSON  Format of the output file
+      -? --help                 Display help message
+      -V --version              Print version information
+         --numeric-version      Print just the version number
+      -v --verbose              Loud verbosity
+      -q --quiet                Quiet verbosity
+  
+    compiles your kk file to either json or yaml
+
+
 ### Defining Types 
 
 `%template` is used to define a type, for example a kubernetes pod could be represented as 
