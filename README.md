@@ -2,7 +2,7 @@
 
 ### Defining Types 
 
-%template is used to define a type, for example a kubernetes pod could be represented as 
+`%template` is used to define a type, for example a kubernetes pod could be represented as 
 
     %template MetaObj { name : String, labels : {String} }
     %template PodSpec { containers : [Image], retartPolicy : String }
@@ -53,11 +53,11 @@ and consist of the type `A & B`
 ### Union types 
 
 We support union types aswell, for example we can have a Hash that contains either strings 
-or numbers represented as {String|Number} or a list of Strings and Bools as \[String|Bool]
+or numbers represented as `{String|Number}` or a list of Strings and Bools as `[String|Bool]`
 
 ### Optionality 
 
-Optionality is represented as ? for example 
+Optionality is represented as `?` for example 
  
     %template A { firstName : String? }
  
