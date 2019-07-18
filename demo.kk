@@ -1,4 +1,4 @@
-# KK - a simple typesafe compile-to-yaml language
+# KK - a simple typed compile-to-yaml language
 # This example is a kubernetes pod
 
 %include "kubernetes.kk"
@@ -13,7 +13,9 @@
 
 # Lets make a pod
 Pod {
-  metadata = MetaObj { name   = "busybox"
+  metadata = MetaObj { name   = %join([ "busybox"
+                                      , "another line"
+                                      ])
                        labels = { app: "busybox" }
                      }
   spec     = PodSpec {

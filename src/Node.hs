@@ -10,7 +10,9 @@ data Type = TString
           | TNumber
           | THash Type
           | TArray Type
-          | TObject Text
+          | TObject Text 
+          | TIntersection [Type]
+          | TUnion [Type]
           deriving (Show)
 
 data Node = KObject Text ![(Text, Node)]
