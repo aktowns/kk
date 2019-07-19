@@ -48,13 +48,13 @@ reduceFn (t, x) = do
   return $ bitraverse pure id (t, x')
 
 reduce :: Node -> KK (Maybe Node)
-reduce (KObject n body) = Just . KObject n . catMaybes <$> mapM reduceFn body
-reduce (KList xs)       = Just . KList . catMaybes <$> mapM reduce xs
-reduce (KDefine n a b)  = Nothing <$ envInsert n (a, b)
-reduce (KTemplate _ _)  = pure Nothing -- Todo
-reduce (KCall n a)      = envApply n a
-reduce (KVariable n)    = Just <$> varGet n
-reduce k                = pure $ Just k
+reduce (KObject p t n body) = Just . KObject p t n . catMaybes <$> mapM reduceFn body
+reduce (KList p t xs)       = Just . KList p t . catMaybes <$> mapM reduce xs
+reduce (KDefine _ _ n a b)  = Nothing <$ envInsert n (a, b)
+reduce (KTemplate _ _ _ _)  = pure Nothing -- Todo
+reduce (KCall _ _ n a)      = envApply n a
+reduce (KVariable _ _ n)    = Just <$> varGet n
+reduce k                    = pure $ Just k
 
 reduceAll :: [Node] -> KK [Node]
 reduceAll x = catMaybes <$> mapM reduce x

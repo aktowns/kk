@@ -14,10 +14,10 @@ evTup :: [(Text, Node)] -> [(Text, A.Value)]
 evTup = map (\(x, y) -> (x, toValue y))
 
 toValue :: Node -> A.Value
-toValue (KObject _ body) = A.Object $ HM.fromList $ evTup body
-toValue (KHash body)     = A.Object $ HM.fromList $ evTup body
-toValue (KList xs)       = A.Array $ V.fromList $ map toValue xs
-toValue (KString s)      = A.String s
+toValue (KObject _ _ _ body) = A.Object $ HM.fromList $ evTup body
+toValue (KHash _ _ body)     = A.Object $ HM.fromList $ evTup body
+toValue (KList _ _ xs)       = A.Array $ V.fromList $ map toValue xs
+toValue (KString _ _ s)      = A.String s
 
 toYaml :: [Node] -> String
 toYaml xs = intercalate "\n---\n" $ map (toS . Y.encode . toValue) xs

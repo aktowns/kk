@@ -9,6 +9,7 @@ import           Data.Text    (Text)
 import qualified Data.Text    as T
 import qualified Data.Text.IO as T
 import           Data.Void
+import qualified Data.Set as Set
 import           Control.Monad (join)
 import           Data.String.Conv (toS)
 
@@ -22,6 +23,14 @@ sc = L.space space1 (L.skipLineComment "#") (L.skipBlockComment "#{" "#}")
 lexeme = L.lexeme sc
 
 symbol = L.symbol sc
+
+getPos :: Parser Position
+getPos = do
+    pos <- getSourcePos
+    return $ Position { line = unPos $ sourceLine pos
+                      , column = unPos $ sourceColumn pos
+                      , file = sourceName pos 
+                      }
 
 charLiteral :: Parser Char
 charLiteral = between (char '\'') (char '\'') L.charLiteral
@@ -65,47 +74,59 @@ percent = symbol "%"
 dollar :: Parser Text
 dollar  = symbol "$"
 
+pipe :: Parser Text
+pipe = symbol "|"
+
+ampersand :: Parser Text
+ampersand = symbol "&"
+
 kDefine :: Parser Node
 kDefine = lexeme $ do
+    pos  <- getPos
     _    <- symbol "%define"
     name <- kIdentifier
     _    <- lparen
     args <- kIdentifier `sepBy` comma
     _    <- rparen
     _    <- equal
-    KDefine name args <$> kValue
+    KDefine pos Untyped name args <$> kValue
 
 kInclude :: Parser Node
 kInclude = lexeme $ do
+    pos <- getPos
     _ <- symbol "%include"
-    KInclude <$> stringLiteral
+    KInclude pos Untyped <$> stringLiteral
 
 kNumber :: Parser Node
-kNumber = KNumber <$> lexeme (L.float <|> (fromIntegral <$> L.decimal))
+kNumber = KNumber <$> getPos <*> pure Untyped <*> lexeme (L.float <|> (fromIntegral <$> L.decimal))
 
 kString :: Parser Node
-kString = KString <$> stringLiteral
+kString = KString <$> getPos <*> pure Untyped <*> stringLiteral
+
+kBool :: Parser Node
+kBool = KBool <$> getPos <*> pure Untyped <*> ((const True <$> symbol "true") <|> (const False <$> symbol "false"))
 
 kIdentifier :: Parser Text
 kIdentifier = lexeme (T.pack <$> ((:) <$> letterChar <*> many alphaNumChar <?> "identifier"))
 
 kVariable :: Parser Node
-kVariable = KVariable <$> (dollar *> kIdentifier) <?> "variable"
+kVariable = KVariable <$> getPos <*> pure Untyped <*> (dollar *> kIdentifier) <?> "variable"
 
 kCall :: Parser Node
 kCall = lexeme $ do
+    pos <- getPos
     _ <- percent
     name <- kIdentifier
     _ <- lparen 
     args <- kValue `sepBy` comma
     _ <- rparen
-    return $ KCall name args
+    return $ KCall pos Untyped name args
 
 kTopLevel :: Parser [Node]
 kTopLevel = lexeme $ many (kDefine <|> kInclude <|> kTemplate <|> kObject <|> kCall) <* eof
 
 kValue :: Parser Node
-kValue  = lexeme $ kNumber <|> kString <|> kHash <|> kList <|> kObject <|> kVariable <|> kCall
+kValue  = lexeme $ kNumber <|> kString <|> kBool <|> kHash <|> kList <|> kObject <|> kVariable <|> kCall
 
 kHashItem :: Parser (Text, Node)
 kHashItem = do
@@ -116,17 +137,19 @@ kHashItem = do
 
 kHash :: Parser Node
 kHash = do 
+    pos <- getPos
     _ <- lbrack
     items <- kHashItem `sepBy` comma
     _ <- rbrack
-    return $ KHash items
+    return $ KHash pos Untyped items
 
 kList :: Parser Node
 kList = do
+    pos <- getPos
     _ <- lblock
     items <- kValue `sepBy` comma
     _ <- rblock
-    return $ KList items
+    return $ KList pos Untyped items
 
 kObjectItem :: Parser (Text, Node)
 kObjectItem = do
@@ -137,20 +160,22 @@ kObjectItem = do
     
 kObject :: Parser Node
 kObject = lexeme $ do
+    pos <- getPos
     name <- kIdentifier
     _ <- lbrack
     body <- many kObjectItem
     _ <- rbrack
-    return $ KObject name body
+    return $ KObject pos Untyped name body
 
 kTemplate :: Parser Node
 kTemplate = lexeme $ do
+    pos <- getPos
     _ <- symbol "%template"
     name <- kIdentifier
     _ <- lbrack
     body <- many kTemplateItem
     _ <- rbrack
-    return $ KTemplate name body
+    return $ KTemplate pos Untyped name body
 
 kTemplateItem :: Parser (Text, KTemplateField)
 kTemplateItem = lexeme $ try kTypeTemplateField <|> kNodeTemplateField
@@ -162,23 +187,53 @@ kNodeTemplateField = lexeme $ do
     body <- kValue
     return (name, N body)
 
+kUnionType :: Parser Type
+kUnionType = lexeme $ do
+    tys <- kType `sepBy1` pipe
+    return $ TUnion $ Set.fromList tys
+
+kIntersectionType :: Parser Type
+kIntersectionType = lexeme $ do
+    tys <- kType `sepBy1` ampersand
+    return $ TIntersectionRef $ Set.fromList tys
+
 kListType :: Parser Type
 kListType = lexeme $ do
     _ <- lblock
-    ty <- kType
+    ty <- kAllType
     _ <- rblock
     return $ TList ty
 
 kHashType :: Parser Type
 kHashType = lexeme $ do
     _ <- lbrack
-    ty <- kType
+    ty <- kAllType
     _ <- rbrack
     return $ THash ty
 
+kStringType :: Parser Type
+kStringType = TString <$ symbol "String"
+
+kNumberType :: Parser Type
+kNumberType = TNumber <$ symbol "Number"
+
+kBoolType :: Parser Type
+kBoolType = TBool <$ symbol "Bool"
+
+kAllType :: Parser Type
+kAllType  = kStringType
+        <|> kNumberType
+        <|> kBoolType
+        <|> kListType
+        <|> kHashType
+        <|> kUnionType
+        <|> kIntersectionType
+        <|> (TObjectRef <$> kIdentifier)
+
 kType :: Parser Type
-kType  = (TString <$ symbol "String")
-     <|> (TNumber <$ symbol "Number")
+kType  = kStringType
+     <|> kNumberType
+     <|> kBoolType
      <|> kListType
      <|> kHashType
      <|> (TObjectRef <$> kIdentifier)
@@ -187,9 +242,8 @@ kTypeTemplateField :: Parser (Text, KTemplateField)
 kTypeTemplateField = lexeme $ do
     name <- kIdentifier
     _ <- colon
-    body <- kType
+    body <- kAllType
     return (name, T body)
-
 
 kParse :: FilePath -> IO [Node]
 kParse fn = do
@@ -202,5 +256,5 @@ collectImports :: [Node] -> IO [Node]
 collectImports xs = join <$> traverse inner xs
   where
     inner :: Node -> IO [Node]
-    inner (KInclude fn) = kParse $ toS fn
+    inner (KInclude _ _ fn) = kParse $ toS fn
     inner x = return [x]
