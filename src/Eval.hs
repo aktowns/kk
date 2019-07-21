@@ -21,25 +21,25 @@ emptyCtx = Ctx { env = HM.empty, var = HM.empty }
 
 envInsert :: Text -> ([Text], Node) -> KK ()
 envInsert n a = do
-    e <- gets env
-    modify (\s -> s {env = HM.insert n a e})
+  e <- gets env
+  modify (\s -> s {env = HM.insert n a e})
 
 envGet :: Text -> KK ([Text], Node)
 envGet n = do
-    e <- gets env
-    return $ fromMaybe (error $ show n ++ " is not defined") (HM.lookup n e)
+  e <- gets env
+  return $ fromMaybe (error $ show n ++ " is not defined") (HM.lookup n e)
 
 varGet :: Text -> KK Node
 varGet n = do
-    v <- gets var
-    return $ fromMaybe (error $ show n ++ " is not defined") (HM.lookup n v)
+  v <- gets var
+  return $ fromMaybe (error $ show n ++ " is not defined") (HM.lookup n v)
 
 envApply :: Text -> [Node] -> KK (Maybe Node)
 envApply n a = do
-    (a', n') <- envGet n
-    ctx <- get
-    let e = ctx { var = HM.fromList $ zip a' a }
-    pure $ evalKK e $ reduce n'
+  (a', n') <- envGet n
+  ctx <- get
+  let e = ctx { var = HM.fromList $ zip a' a }
+  pure $ evalKK e $ reduce n'
 
 reduceFn :: (Text, Node) -> KK (Maybe (Text, Node))
 reduceFn (t, x) = do

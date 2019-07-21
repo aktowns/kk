@@ -44,19 +44,19 @@ lintMode = Lint { inFile = fin def
                 } &= help "lints your kk file"
 
 lspMode = LSP {}
-              &= help "enable the language server, for autocomplete and on the fly errors"
+             &= help "enable the language server, for autocomplete and on the fly errors"
 
 mode = cmdArgsMode $ modes [compileMode, formatMode, lintMode, lspMode]
-    &= help "to yaml or json configuration compiler"
-    &= summary "kk v0.0.0, (C) Ashley Towns"
+  &= help "to yaml or json configuration compiler"
+  &= summary "kk v0.0.0, (C) Ashley Towns"
 
 doCompile Compile{..} = do
-    output <- case format of
-      YAML -> kCompile inFile
-      JSON -> kCompileJson inFile
-    case outFile of
-      Just fn -> writeFile fn output
-      Nothing -> putStrLn output
+  output <- case format of
+    YAML -> kCompile inFile
+    JSON -> kCompileJson inFile
+  case outFile of
+    Just fn -> writeFile fn output
+    Nothing -> putStrLn output
 
 doFormat Format{..} = kFormat inFile
 

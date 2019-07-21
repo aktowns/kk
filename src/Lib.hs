@@ -8,8 +8,8 @@ import Pretty
 
 kRead :: FilePath -> IO [Node]
 kRead fp = do
-    ast <- kParseAll fp
-    return $ evalKK emptyCtx (reduceAll ast)
+  ast <- kParseAll fp
+  return $ evalKK emptyCtx (reduceAll ast)
 
 kCompile :: FilePath -> IO String
 kCompile fp = toYaml <$> kRead fp
