@@ -21,7 +21,6 @@ apply (KList p _ s) t     = KList p (Typed t) s
 apply (KHash p _ s) t     = KHash p (Typed t) s
 apply (KObject p _ n s) t = KObject p (Typed t) n s
 
-
 typed :: Node -> Node
 typed x@(KString _ Untyped _)    = apply x $ infer x
 typed x@(KNumber _ Untyped _)    = apply x $ infer x
@@ -31,9 +30,9 @@ typed x@(KHash p Untyped xs)     = KHash p (Typed $ infer x) $ map (\(x, y) -> (
 typed x@(KObject p Untyped n xs) = KObject p (Typed $ infer x) n $ map (\(n, x) -> (n, typed x)) xs
 
 infer :: Node -> Type
-infer (KString _ _ _)    = TString
-infer (KNumber _ _ _)    = TNumber
-infer (KBool _ _ _)      = TBool
+infer KString{}    = TString
+infer KNumber{}    = TNumber
+infer KBool{}      = TBool
 infer (KList _ _ xs)     = 
   let ts = Set.fromList $ map infer xs 
       el = if Set.size ts > 1 then TUnion ts else Set.elemAt 0 ts

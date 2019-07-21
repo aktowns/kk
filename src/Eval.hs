@@ -51,7 +51,7 @@ reduce :: Node -> KK (Maybe Node)
 reduce (KObject p t n body) = Just . KObject p t n . catMaybes <$> mapM reduceFn body
 reduce (KList p t xs)       = Just . KList p t . catMaybes <$> mapM reduce xs
 reduce (KDefine _ _ n a b)  = Nothing <$ envInsert n (a, b)
-reduce (KTemplate _ _ _ _)  = pure Nothing -- Todo
+--reduce (KTemplate _ _ _ _)  = pure $ Just 
 reduce (KCall _ _ n a)      = envApply n a
 reduce (KVariable _ _ n)    = Just <$> varGet n
 reduce k                    = pure $ Just k

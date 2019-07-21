@@ -5,20 +5,21 @@ import           Text.Megaparsec
 import           Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer as L
 import           Text.Megaparsec.Debug
-import           Data.Text    (Text)
-import qualified Data.Text    as T
-import qualified Data.Text.IO as T
+import           Data.Text                  (Text)
+import qualified Data.Text                  as T
+import qualified Data.Text.IO               as T
 import           Data.Void
-import qualified Data.Set as Set
-import           Control.Monad (join)
-import           Data.String.Conv (toS)
+import qualified Data.Set                   as Set
+import           Control.Monad              (join)
+import           Data.String.Conv           (toS)
+import           Data.Bifunctor             (bimap)
 
 import           Node
 
 type Parser = Parsec Void Text
 
 sc :: Parser ()
-sc = L.space space1 (L.skipLineComment "#") (L.skipBlockComment "#{" "#}")
+sc = L.space space1 empty empty
 
 lexeme = L.lexeme sc
 
@@ -37,6 +38,9 @@ charLiteral = between (char '\'') (char '\'') L.charLiteral
 
 stringLiteral :: Parser Text
 stringLiteral = T.pack <$> (char '\"' *> manyTill L.charLiteral (char '\"'))
+
+numberLiteral :: Parser Float
+numberLiteral = lexeme (try L.float <|> (fromIntegral <$> L.decimal))
 
 lbrack :: Parser Text
 lbrack  = symbol "{"
@@ -97,14 +101,19 @@ kInclude = lexeme $ do
     _ <- symbol "%include"
     KInclude pos Untyped <$> stringLiteral
 
+lineComment :: Parser Node
+lineComment = lexeme $ do 
+  pos <- getPos
+  KComment pos Untyped <$> (string "#" *> takeWhileP (Just "character") (/= '\n'))
+
 kNumber :: Parser Node
-kNumber = KNumber <$> getPos <*> pure Untyped <*> lexeme (L.float <|> (fromIntegral <$> L.decimal))
+kNumber = KNumber <$> getPos <*> pure Untyped <*> numberLiteral 
 
 kString :: Parser Node
 kString = KString <$> getPos <*> pure Untyped <*> stringLiteral
 
 kBool :: Parser Node
-kBool = KBool <$> getPos <*> pure Untyped <*> ((const True <$> symbol "true") <|> (const False <$> symbol "false"))
+kBool = KBool <$> getPos <*> pure Untyped <*> ((True <$ symbol "true") <|> (False <$ symbol "false"))
 
 kIdentifier :: Parser Text
 kIdentifier = lexeme (T.pack <$> ((:) <$> letterChar <*> many alphaNumChar <?> "identifier"))
@@ -123,10 +132,10 @@ kCall = lexeme $ do
     return $ KCall pos Untyped name args
 
 kTopLevel :: Parser [Node]
-kTopLevel = lexeme $ many (kDefine <|> kInclude <|> kTemplate <|> kObject <|> kCall) <* eof
+kTopLevel = lexeme $ many (kDefine <|> kInclude <|> kTemplate <|> kObject <|> kCall <|> lineComment) <* eof
 
 kValue :: Parser Node
-kValue  = lexeme $ kNumber <|> kString <|> kBool <|> kHash <|> kList <|> kObject <|> kVariable <|> kCall
+kValue  = lexeme $ kNumber <|> kString <|> kBool <|> kHash <|> kList <|> kObject <|> kVariable <|> kCall <|> lineComment
 
 kHashItem :: Parser (Text, Node)
 kHashItem = do
@@ -151,12 +160,15 @@ kList = do
     _ <- rblock
     return $ KList pos Untyped items
 
-kObjectItem :: Parser (Text, Node)
-kObjectItem = do
+kKVPair :: Parser a -> Parser (Text, Node)
+kKVPair p = do
     name <- kIdentifier
-    _ <- equal
+    _ <- p
     body <- kValue
     return (name, body)
+
+kObjectItem :: Parser (Text, Node)
+kObjectItem = kKVPair equal
     
 kObject :: Parser Node
 kObject = lexeme $ do
@@ -181,11 +193,7 @@ kTemplateItem :: Parser (Text, KTemplateField)
 kTemplateItem = lexeme $ try kTypeTemplateField <|> kNodeTemplateField
 
 kNodeTemplateField :: Parser (Text, KTemplateField)
-kNodeTemplateField = lexeme $ do
-    name <- kIdentifier
-    _ <- equal
-    body <- kValue
-    return (name, N body)
+kNodeTemplateField = lexeme $ bimap id N <$> kKVPair equal
 
 kUnionType :: Parser Type
 kUnionType = lexeme $ do
@@ -250,11 +258,14 @@ kParse fn = do
     source <- T.readFile fn
     case parse (sc *> kTopLevel) fn source of
         Left bundle -> error (errorBundlePretty bundle)
-        Right xs -> collectImports xs
+        Right xs -> return xs
+
+kParseAll :: FilePath -> IO [Node]
+kParseAll fn = collectImports =<< kParse fn
 
 collectImports :: [Node] -> IO [Node]
 collectImports xs = join <$> traverse inner xs
   where
     inner :: Node -> IO [Node]
-    inner (KInclude _ _ fn) = kParse $ toS fn
+    inner (KInclude _ _ fn) = kParseAll $ toS fn
     inner x = return [x]
