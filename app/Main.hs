@@ -1,4 +1,5 @@
-{-# LANGUAGE DeriveDataTypeable, RecordWildCards #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE RecordWildCards    #-}
 {-# OPTIONS_GHC -fno-cse #-}
 module Main where
 
@@ -11,13 +12,13 @@ data OutFormat = YAML | JSON deriving (Show, Data, Typeable, Eq)
 instance Default OutFormat where
   def = YAML
 
-data KK = Compile { inFile  :: FilePath 
+data KK = Compile { inFile  :: FilePath
                   , outFile :: Maybe FilePath
                   , format  :: OutFormat
-                  } 
-        | Format { inFile  :: FilePath 
+                  }
+        | Format { inFile  :: FilePath
                  , outFile :: Maybe FilePath
-                 , colour  :: Bool 
+                 , colour  :: Bool
                  }
         | Lint   { inFile  :: FilePath
                  , inPlace :: Bool
@@ -35,10 +36,10 @@ compileMode = Compile { inFile = fin def
 
 formatMode = Format { inFile = fin def
                     , outFile = fout def
-                    , colour = def &= typ "yes|no" &= help "colourize the output" 
+                    , colour = def &= typ "yes|no" &= help "colourize the output"
                     } &= help "formats your kk file, fixing indenting"
 
-lintMode = Lint { inFile = fin def 
+lintMode = Lint { inFile = fin def
                 , inPlace = def &= typ "true|false" &= help "Update the file in-place"
                 } &= help "lints your kk file"
 
@@ -46,7 +47,7 @@ lspMode = LSP {}
               &= help "enable the language server, for autocomplete and on the fly errors"
 
 mode = cmdArgsMode $ modes [compileMode, formatMode, lintMode, lspMode]
-    &= help "to yaml or json configuration compiler" 
+    &= help "to yaml or json configuration compiler"
     &= summary "kk v0.0.0, (C) Ashley Towns"
 
 doCompile Compile{..} = do
@@ -60,7 +61,7 @@ doCompile Compile{..} = do
 doFormat Format{..} = kFormat inFile
 
 main :: IO ()
-main = do 
+main = do
   m <- cmdArgsRun mode
   case m of
     x@Compile{} -> doCompile x

@@ -6,12 +6,12 @@ import Test.Hspec.Megaparsec
 
 import Text.Megaparsec
 
-import Parse
 import Node
+import Parse
 import Type
 
 isNumber KNumber{} = True
-isNumber _ = False
+isNumber _         = False
 
 spec :: Spec
 spec = do
@@ -44,11 +44,11 @@ spec = do
     it "correctly parses" $ subject "$hello" `parseSatisfies` (\(KVariable _ _ x) -> x =="hello")
   describe "function calls" $ do
     let subject = parse kCall ""
-    it "correctly parses no args" $ 
+    it "correctly parses no args" $
       subject "%hello()" `parseSatisfies` (\(KCall _ _ n a) -> n =="hello" && null a)
-    it "correctly parses with 1 arg" $ 
+    it "correctly parses with 1 arg" $
       subject "%hello(1)" `parseSatisfies` (\(KCall _ _ n a) -> n =="hello" && length a == 1)
-    it "correctly parses with many args" $ 
+    it "correctly parses with many args" $
       subject "%hello(1,true,[3,4])" `parseSatisfies` (\(KCall _ _ n a) -> n =="hello" && length a == 3)
   describe "hashes" $ do
     let subject = parse kHash ""
@@ -56,5 +56,5 @@ spec = do
       subject "{a: 1}" `parseSatisfies` (\(KHash _ _ x) -> lookup "hello" x)
   describe "lists" $ do
     let subject = parse kList ""
-    it "correctly parses" $ 
+    it "correctly parses" $
       subject "[1,2,3]" `parseSatisfies` (\(KList _ _ xs) -> [1,2,3])

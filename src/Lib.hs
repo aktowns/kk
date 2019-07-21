@@ -1,13 +1,13 @@
 module Lib where
 
-import Node
-import Eval
-import Parse
 import Compile
+import Eval
+import Node
+import Parse
 import Pretty
 
 kRead :: FilePath -> IO [Node]
-kRead fp = do 
+kRead fp = do
     ast <- kParseAll fp
     return $ evalKK emptyCtx (reduceAll ast)
 

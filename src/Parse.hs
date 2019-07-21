@@ -1,20 +1,20 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Parse where
 
-import           Text.Megaparsec
-import           Text.Megaparsec.Char
-import qualified Text.Megaparsec.Char.Lexer as L
-import           Text.Megaparsec.Debug
+import           Control.Monad              (join)
+import           Data.Bifunctor             (bimap)
+import qualified Data.Set                   as Set
+import           Data.String.Conv           (toS)
 import           Data.Text                  (Text)
 import qualified Data.Text                  as T
 import qualified Data.Text.IO               as T
 import           Data.Void
-import qualified Data.Set                   as Set
-import           Control.Monad              (join)
-import           Data.String.Conv           (toS)
-import           Data.Bifunctor             (bimap)
+import           Text.Megaparsec
+import           Text.Megaparsec.Char
+import qualified Text.Megaparsec.Char.Lexer as L
+import           Text.Megaparsec.Debug
 
-import           Node
+import Node
 
 type Parser = Parsec Void Text
 
@@ -30,7 +30,7 @@ getPos = do
     pos <- getSourcePos
     return $ Position { line = unPos $ sourceLine pos
                       , column = unPos $ sourceColumn pos
-                      , file = sourceName pos 
+                      , file = sourceName pos
                       }
 
 charLiteral :: Parser Char
@@ -102,12 +102,12 @@ kInclude = lexeme $ do
     KInclude pos Untyped <$> stringLiteral
 
 lineComment :: Parser Node
-lineComment = lexeme $ do 
+lineComment = lexeme $ do
   pos <- getPos
   KComment pos Untyped <$> (string "#" *> takeWhileP (Just "character") (/= '\n'))
 
 kNumber :: Parser Node
-kNumber = KNumber <$> getPos <*> pure Untyped <*> numberLiteral 
+kNumber = KNumber <$> getPos <*> pure Untyped <*> numberLiteral
 
 kString :: Parser Node
 kString = KString <$> getPos <*> pure Untyped <*> stringLiteral
@@ -126,7 +126,7 @@ kCall = lexeme $ do
     pos <- getPos
     _ <- percent
     name <- kIdentifier
-    _ <- lparen 
+    _ <- lparen
     args <- kValue `sepBy` comma
     _ <- rparen
     return $ KCall pos Untyped name args
@@ -145,7 +145,7 @@ kHashItem = do
     return (key, value)
 
 kHash :: Parser Node
-kHash = do 
+kHash = do
     pos <- getPos
     _ <- lbrack
     items <- kHashItem `sepBy` comma
@@ -169,7 +169,7 @@ kKVPair p = do
 
 kObjectItem :: Parser (Text, Node)
 kObjectItem = kKVPair equal
-    
+
 kObject :: Parser Node
 kObject = lexeme $ do
     pos <- getPos
@@ -258,7 +258,7 @@ kParse fn = do
     source <- T.readFile fn
     case parse (sc *> kTopLevel) fn source of
         Left bundle -> error (errorBundlePretty bundle)
-        Right xs -> return xs
+        Right xs    -> return xs
 
 kParseAll :: FilePath -> IO [Node]
 kParseAll fn = collectImports =<< kParse fn
@@ -268,4 +268,4 @@ collectImports xs = join <$> traverse inner xs
   where
     inner :: Node -> IO [Node]
     inner (KInclude _ _ fn) = kParseAll $ toS fn
-    inner x = return [x]
+    inner x                 = return [x]

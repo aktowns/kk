@@ -1,14 +1,14 @@
 module Compile where
 
-import           Data.Text           (Text)
 import qualified Data.Aeson          as A
-import qualified Data.Vector         as V
-import qualified Data.Yaml           as Y
 import qualified Data.HashMap.Strict as HM
 import           Data.List           (intercalate)
 import           Data.String.Conv    (toS)
+import           Data.Text           (Text)
+import qualified Data.Vector         as V
+import qualified Data.Yaml           as Y
 
-import           Node
+import Node
 
 evTup :: [(Text, Node)] -> [(Text, A.Value)]
 evTup = map (\(x, y) -> (x, toValue y))

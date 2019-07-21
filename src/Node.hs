@@ -1,10 +1,10 @@
 module Node where
 
+import           Data.List        (intercalate)
 import           Data.Set         (Set)
 import qualified Data.Set         as Set
-import           Data.Text        (Text)
-import           Data.List        (intercalate)
 import           Data.String.Conv (toS)
+import           Data.Text        (Text)
 
 data KTemplateField = N Node
                     | T Type
@@ -17,7 +17,7 @@ data Type = TString
           | TBool
           | THash Type
           | TList Type
-          | TObjectRef Text 
+          | TObjectRef Text
           | TObject Text Type
           | TIntersection (Set (Text, Type))
           | TIntersectionRef (Set Type)

@@ -1,13 +1,13 @@
 module Type where
 
-import           Data.Text                (Text)
-import qualified Data.Set                 as Set
-import           Control.Monad.State.Lazy (State, gets, get, modify, evalState, runState)
+import           Control.Monad.State.Lazy (State, evalState, get, gets, modify, runState)
 import           Data.HashMap.Strict      (HashMap)
 import qualified Data.HashMap.Strict      as HM
-import           Data.String.Conv (toS)
+import qualified Data.Set                 as Set
+import           Data.String.Conv         (toS)
+import           Data.Text                (Text)
 
-import           Node
+import Node
 
 data TypeStatus = CheckOk | CheckFail String deriving (Show)
 
@@ -33,23 +33,23 @@ infer :: Node -> Type
 infer KString{}    = TString
 infer KNumber{}    = TNumber
 infer KBool{}      = TBool
-infer (KList _ _ xs)     = 
-  let ts = Set.fromList $ map infer xs 
+infer (KList _ _ xs)     =
+  let ts = Set.fromList $ map infer xs
       el = if Set.size ts > 1 then TUnion ts else Set.elemAt 0 ts
   in TList el
-infer (KHash _ _ xs)     = 
-  let ts = Set.fromList $ map (infer . snd) xs 
+infer (KHash _ _ xs)     =
+  let ts = Set.fromList $ map (infer . snd) xs
       el = if Set.size ts > 1 then TUnion ts else Set.elemAt 0 ts
   in THash el
-infer (KObject _ _ n xs) = 
+infer (KObject _ _ n xs) =
   TObject n $ TIntersection $ Set.fromList $ map (\(n, x) -> (n, infer x)) xs
 
 typeOf :: Type -> String
-typeOf TString   = "String"
-typeOf TNumber   = "Number"
-typeOf TBool     = "Bool"
-typeOf (TList x) = "[" ++ typeOf x ++ "]"
-typeOf (THash x) = "{" ++ typeOf x ++ "}"
+typeOf TString       = "String"
+typeOf TNumber       = "Number"
+typeOf TBool         = "Bool"
+typeOf (TList x)     = "[" ++ typeOf x ++ "]"
+typeOf (THash x)     = "{" ++ typeOf x ++ "}"
 typeOf (TObject n _) = toS n
 
 check :: Type -> Type -> TypeStatus
