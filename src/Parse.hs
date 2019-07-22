@@ -16,6 +16,8 @@ import           Text.Megaparsec.Debug
 
 import Node
 
+import Debug.Trace
+
 type Parser = Parsec Void Text
 
 sc :: Parser ()
@@ -38,6 +40,22 @@ charLiteral = between (char '\'') (char '\'') L.charLiteral
 
 stringLiteral :: Parser Text
 stringLiteral = T.pack <$> (char '\"' *> manyTill L.charLiteral (char '\"'))
+
+trimnl = dropWhile (=='\n') . reverse . dropWhile (\x -> x =='\n' || x == ' ') . reverse
+
+hereDoc :: Parser (Text, Text)
+hereDoc = do
+  _ <- heredoc
+  term <- T.pack <$> some upperChar
+  txt <- T.pack . trimnl <$> (manyTill L.charLiteral (string term))
+  return (term, txt)
+
+hereDocStrip :: Parser (Text, Text)
+hereDocStrip = do
+  _ <- heredocStrip
+  term <- T.pack <$> some upperChar
+  txt <- T.pack <$> (manyTill L.charLiteral (string term))
+  return (term, txt)
 
 numberLiteral :: Parser Float
 numberLiteral = lexeme (try L.float <|> (fromIntegral <$> L.decimal))
@@ -84,6 +102,12 @@ pipe = symbol "|"
 ampersand :: Parser Text
 ampersand = symbol "&"
 
+heredoc :: Parser Text
+heredoc = symbol "<<-"
+
+heredocStrip :: Parser Text
+heredocStrip = symbol "<<~"
+
 kDefine :: Parser Node
 kDefine = lexeme $ do
   pos  <- getPos
@@ -109,8 +133,23 @@ lineComment = lexeme $ do
 kNumber :: Parser Node
 kNumber = KNumber <$> getPos <*> pure Untyped <*> numberLiteral
 
+kStringLiteral :: Parser Node
+kStringLiteral = KString <$> getPos <*> pure Untyped <*> pure Literal <*> stringLiteral
+
+kHereDoc :: Parser Node
+kHereDoc = do 
+  pos <- getPos
+  (term, txt) <- hereDoc
+  return $ KString pos Untyped (HereDoc term) txt
+
+kHereDocStripped :: Parser Node
+kHereDocStripped = do
+  pos <- getPos
+  (term, txt) <- hereDoc
+  return $ KString pos Untyped (HereDocStripped term) txt
+
 kString :: Parser Node
-kString = KString <$> getPos <*> pure Untyped <*> stringLiteral
+kString = kStringLiteral <|> kHereDoc <|> kHereDocStripped
 
 kBool :: Parser Node
 kBool = KBool <$> getPos <*> pure Untyped <*> ((True <$ symbol "true") <|> (False <$ symbol "false"))
@@ -227,6 +266,8 @@ kNumberType = TNumber <$ symbol "Number"
 
 kBoolType :: Parser Type
 kBoolType = TBool <$ symbol "Bool"
+
+
 
 kAllType :: Parser Type
 kAllType  = kStringType

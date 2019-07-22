@@ -7,7 +7,7 @@ import Data.Text.Prettyprint.Doc                 hiding (list)
 import Data.Text.Prettyprint.Doc.Render.Terminal
 import Data.Text.Prettyprint.Doc.Symbols.Ascii
 
-import Node (Node (..))
+import Node (Node (..), StringType(..))
 
 hash = encloseSep (annotate "keyword" lbrace <> space) (space <> annotate "keyword" rbrace) comma
 list = encloseSep (annotate "keyword" lbracket <> space) (space <> annotate "keyword" rbracket) (comma <> space)
@@ -23,12 +23,19 @@ printNodeText node = putDoc $ reAnnotate term $ nodeText node
     term "name"     = color Magenta
     term "variable" = color Yellow
     term "comment"  = color Red
+    term "heredoc"  = color Red
 
 printNodeTexts :: [Node] -> IO ()
 printNodeTexts xs = traverse_ printNodeText xs *> putStrLn ""
 
+deindent d = column (\x -> hang (-x) $ d)
+
 nodeText :: Node -> Doc Text
-nodeText (KString _ _ s)    = annotate "literal" $ dquotes $ pretty s
+nodeText (KString _ _ Literal s)    = annotate "literal" $ dquotes $ pretty s
+nodeText (KString _ _ (HereDoc term) s)    = 
+  annotate "heredoc" $ "<<-" <> (align $ pretty term <> (deindent $ line <> pretty s) <> line <> pretty term)
+nodeText (KString _ _ (HereDocStripped term) s)    = 
+  annotate "heredoc" $ "<<~" <> pretty term <+> pretty s <+> pretty term
 nodeText (KNumber _ _ n)    = annotate "literal" $ pretty n
 nodeText (KBool   _ _ b)    = annotate "literal" $ pretty b
 nodeText (KList   _ _ xs)   = list $ map nodeText xs

@@ -36,10 +36,12 @@ ppType (TUnion xs)        = intercalate "|" $ Set.toList $ Set.map ppType xs
 
 data Check = Typed Type | Untyped deriving (Show, Eq)
 
+data StringType = Literal | HereDoc Text | HereDocStripped Text deriving (Show, Eq)
+
 data Node = KObject   Position Check Text ![(Text, Node)]
           | KList     Position Check ![Node]
           | KHash     Position Check ![(Text, Node)]
-          | KString   Position Check Text
+          | KString   Position Check StringType Text
           | KNumber   Position Check Float
           | KBool     Position Check Bool
           | KComment  Position Check Text
