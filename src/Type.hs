@@ -14,7 +14,7 @@ data TypeStatus = CheckOk | CheckFail String deriving (Show)
 type KKTy = State (HashMap Text Node)
 
 apply :: Node -> Type -> Node
-apply (KString p _ h s) t   = KString p (Typed t) h s
+apply (KString p _ h i s) t   = KString p (Typed t) h i s
 apply (KNumber p _ s) t   = KNumber p (Typed t) s
 apply (KBool p _ s) t     = KBool p (Typed t) s
 apply (KList p _ s) t     = KList p (Typed t) s
@@ -22,7 +22,7 @@ apply (KHash p _ s) t     = KHash p (Typed t) s
 apply (KObject p _ n s) t = KObject p (Typed t) n s
 
 typed :: Node -> Node
-typed x@(KString _ Untyped _ _)    = apply x $ infer x
+typed x@(KString _ Untyped _ _ _)    = apply x $ infer x
 typed x@(KNumber _ Untyped _)    = apply x $ infer x
 typed x@(KBool _ Untyped _)      = apply x $ infer x
 typed x@(KList p Untyped xs)     = KList p (Typed $ infer x) $ map typed xs

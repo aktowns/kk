@@ -7,7 +7,7 @@ import Data.Text.Prettyprint.Doc                 hiding (list)
 import Data.Text.Prettyprint.Doc.Render.Terminal
 import Data.Text.Prettyprint.Doc.Symbols.Ascii
 
-import Node (Node (..), StringType(..))
+import Node (Node (..), StringType (..))
 
 hash = encloseSep (annotate "keyword" lbrace <> space) (space <> annotate "keyword" rbrace) comma
 list = encloseSep (annotate "keyword" lbracket <> space) (space <> annotate "keyword" rbracket) (comma <> space)
@@ -16,7 +16,7 @@ args x = hsep $ punctuate comma x
 kv c (k, v) = pretty k <> c <+> nodeText v
 
 printNodeText :: Node -> IO ()
-printNodeText node = putDoc $ reAnnotate term $ nodeText node
+printNodeText node = putDoc $ reAnnotate term (nodeText node <> line <> line)
   where
     term "literal"  = color Green
     term "keyword"  = color Blue
@@ -26,16 +26,16 @@ printNodeText node = putDoc $ reAnnotate term $ nodeText node
     term "heredoc"  = color Red
 
 printNodeTexts :: [Node] -> IO ()
-printNodeTexts xs = traverse_ printNodeText xs *> putStrLn ""
+printNodeTexts = traverse_ printNodeText
 
-deindent d = column (\x -> hang (-x) $ d)
+deindent d = column (\x -> hang (-x) d)
 
 nodeText :: Node -> Doc Text
-nodeText (KString _ _ Literal s)    = annotate "literal" $ dquotes $ pretty s
-nodeText (KString _ _ (HereDoc term) s)    = 
-  annotate "heredoc" $ "<<-" <> (align $ pretty term <> (deindent $ line <> pretty s) <> line <> pretty term)
-nodeText (KString _ _ (HereDocStripped term) s)    = 
-  annotate "heredoc" $ "<<~" <> pretty term <+> pretty s <+> pretty term
+nodeText (KString _ _ Literal _ s)    = annotate "literal" $ dquotes $ pretty s
+nodeText (KString _ _ (HereDoc term) _ s)    =
+  annotate "heredoc" $ "<<-" <> align (pretty term <> deindent (line <> pretty s)) <> line <> pretty term
+nodeText (KString _ _ (HereDocStripped term) _ s)    =
+  annotate "heredoc" $ "<<~" <> pretty term <> line <> pretty s <> line <> pretty term
 nodeText (KNumber _ _ n)    = annotate "literal" $ pretty n
 nodeText (KBool   _ _ b)    = annotate "literal" $ pretty b
 nodeText (KList   _ _ xs)   = list $ map nodeText xs
@@ -57,4 +57,4 @@ nodeText (KInclude _ _ s)    =
 nodeText (KComment _ _ s)    = annotate "comment" ("#" <> pretty s) <> line
 
 nodeTexts :: [Node] -> Doc Text
-nodeTexts xs = hsep $ map nodeText xs
+nodeTexts xs = vsep $ map nodeText xs

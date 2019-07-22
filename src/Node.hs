@@ -41,7 +41,7 @@ data StringType = Literal | HereDoc Text | HereDocStripped Text deriving (Show, 
 data Node = KObject   Position Check Text ![(Text, Node)]
           | KList     Position Check ![Node]
           | KHash     Position Check ![(Text, Node)]
-          | KString   Position Check StringType Text
+          | KString   Position Check StringType [(Text, Node)] Text
           | KNumber   Position Check Float
           | KBool     Position Check Bool
           | KComment  Position Check Text
