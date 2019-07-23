@@ -13,10 +13,10 @@ import Debug.Trace (trace)
 
 import Node
 
-evTup :: [(Text, Node)] -> [(Text, A.Value)]
+evTup :: (Show a, Show b) => [(Text, Node a b)] -> [(Text, A.Value)]
 evTup = map (\(x, y) -> (x, toValue y))
 
-toValue :: Node -> A.Value
+toValue :: (Show a, Show b) => Node a b -> A.Value
 toValue (KObject _ _ _ body) = A.Object $ HM.fromList $ evTup body
 toValue (KHash _ _ body)     = A.Object $ HM.fromList $ evTup body
 toValue (KList _ _ xs)       = A.Array $ V.fromList $ map toValue xs
@@ -24,8 +24,8 @@ toValue (KString _ _ _ i s)  = A.String s
 toValue (KNumber _ _ n)      = A.Number $ fromFloatDigits n
 toValue x                    = error $ "unexpected compilation error: " ++ show x
 
-toYaml :: [Node] -> String
+toYaml :: (Show a, Show b) => [Node a b] -> String
 toYaml xs = intercalate "\n---\n" $ map (toS . Y.encode . toValue) xs
 
-toJson :: [Node] -> String
+toJson :: (Show a, Show b) => [Node a b] -> String
 toJson xs = intercalate "\n---\n" $ map (toS . A.encode . toValue) xs

@@ -23,6 +23,7 @@ library
                      , Compile
                      , Type
                      , Pretty
+                     , Simple
   -- other-modules:
   other-extensions:    OverloadedStrings
                      , ScopedTypeVariables

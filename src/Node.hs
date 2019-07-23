@@ -6,9 +6,9 @@ import qualified Data.Set         as Set
 import           Data.String.Conv (toS)
 import           Data.Text        (Text)
 
-data KTemplateField = N Node
-                    | T Type
-                    deriving (Show, Eq)
+data KTemplateField a b = N (Node a b)
+                        | T Type
+                        deriving (Show, Eq)
 
 data Position = Position { line :: Int, column :: Int, file :: String } deriving (Show, Eq)
 
@@ -38,19 +38,19 @@ data Check = Typed Type | Untyped deriving (Show, Eq)
 
 data StringType = Literal | HereDoc Text | HereDocStripped Text deriving (Show, Eq)
 
-data Node = KObject   Position Check Text ![(Text, Node)]
-          | KList     Position Check ![Node]
-          | KHash     Position Check ![(Text, Node)]
-          | KString   Position Check StringType [(Text, Node)] Text
-          | KNumber   Position Check Float
-          | KBool     Position Check Bool
-          | KComment  Position Check Text
-          | KDefine   Position Check Text (Maybe [Text]) !Node
-          | KCall     Position Check Text ![Node]
-          | KInclude  Position Check Text
-          | KVariable Position Check Text
-          | KTemplate Position Check Text ![(Text, KTemplateField)]
-          deriving (Show, Eq)
+data Node a b = KObject   a b Text [(Text, Node a b)]
+              | KList     a b [Node a b]
+              | KHash     a b [(Text, Node a b)]
+              | KString   a b StringType [(Text, Node a b)] Text
+              | KNumber   a b Float
+              | KBool     a b Bool
+              | KComment  a b Text
+              | KDefine   a b Text (Maybe [Text]) (Node a b)
+              | KCall     a b Text [Node a b]
+              | KInclude  a b Text
+              | KVariable a b Text
+              | KTemplate a b Text [(Text, KTemplateField a b)]
+              deriving (Show, Eq)
 
 ppCheck :: Check -> String
 ppCheck (Typed ty) = ppType ty

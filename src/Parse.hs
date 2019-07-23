@@ -20,6 +20,7 @@ import Node
 import Debug.Trace
 
 type Parser = Parsec Void Text
+type PNode  = Node Position Check
 
 trimnl = dropWhile (=='\n') . reverse . dropWhile (\x -> x =='\n' || x == ' ') . reverse
 trims  = T.dropWhile (\x -> x == ' ' || x == '\n') . T.reverse . T.dropWhile (\x -> x == ' ' || x == '\n') . T.reverse
@@ -52,7 +53,7 @@ hereDoc = do
   txt <- T.pack . trimnl <$> manyTill L.charLiteral (string term)
   return (f term, txt)
 
-interpolate :: Parser (Text, Node)
+interpolate :: Parser (Text, PNode)
 interpolate = do
   (t, v) <- match $ do
     pos <- getPos
@@ -113,7 +114,7 @@ heredoc = symbol "<<-"
 heredocStrip :: Parser Text
 heredocStrip = symbol "<<~"
 
-kDefine :: Parser Node
+kDefine :: Parser PNode
 kDefine = lexeme $ do
   pos  <- getPos
   _    <- symbol "%define"
@@ -126,58 +127,58 @@ kDefine = lexeme $ do
   _    <- equal
   KDefine pos Untyped name args <$> kValue
 
-kInclude :: Parser Node
+kInclude :: Parser PNode
 kInclude = lexeme $ do
   pos <- getPos
   _ <- symbol "%include"
   KInclude pos Untyped <$> stringLiteral
 
-lineComment :: Parser Node
+lineComment :: Parser PNode
 lineComment = lexeme $ do
   pos <- getPos
   KComment pos Untyped <$> (string "#" *> takeWhileP (Just "character") (/= '\n'))
 
-collectInterpolations :: Text -> [(Text, Node)]
+collectInterpolations :: Text -> [(Text, PNode)]
 collectInterpolations txt =
   case results of
     (Left err) -> error (errorBundlePretty err)
     (Right xs) -> catMaybes xs
   where
-    ignoreCharacter :: Parser (Maybe (Text, Node))
+    ignoreCharacter :: Parser (Maybe (Text, PNode))
     ignoreCharacter = Nothing <$ L.charLiteral
 
-    interpolated :: Parser (Maybe (Text, Node))
+    interpolated :: Parser (Maybe (Text, PNode))
     interpolated    = Just <$> interpolate
 
     results = parse (many (interpolated <|> ignoreCharacter)) "interpolated string" txt
 
-kNumber :: Parser Node
+kNumber :: Parser PNode
 kNumber = KNumber <$> getPos <*> pure Untyped <*> numberLiteral
 
-kStringLiteral :: Parser Node
+kStringLiteral :: Parser PNode
 kStringLiteral = do
   pos <- getPos
   str <- stringLiteral
   let inter = collectInterpolations str
   return $ KString pos Untyped Literal inter str
 
-kHereDoc :: Parser Node
+kHereDoc :: Parser PNode
 kHereDoc = do
   pos <- getPos
   (term, txt) <- hereDoc
   let inter = collectInterpolations txt
   return $ KString pos Untyped term inter txt
 
-kString :: Parser Node
+kString :: Parser PNode
 kString = kStringLiteral <|> kHereDoc
 
-kBool :: Parser Node
+kBool :: Parser PNode
 kBool = KBool <$> getPos <*> pure Untyped <*> ((True <$ symbol "true") <|> (False <$ symbol "false"))
 
 kIdentifier :: Parser Text
 kIdentifier = lexeme (T.pack <$> ((:) <$> letterChar <*> many alphaNumChar <?> "identifier"))
 
-kCall :: Parser Node
+kCall :: Parser PNode
 kCall = lexeme $ do
   pos <- getPos
   _ <- percent
@@ -191,20 +192,20 @@ kCall = lexeme $ do
     Just a  -> KCall pos Untyped name a
     Nothing -> KVariable pos Untyped name
 
-kTopLevel :: Parser [Node]
+kTopLevel :: Parser [PNode]
 kTopLevel = lexeme $ many (kDefine <|> kInclude <|> kTemplate <|> kObject <|> kCall <|> lineComment) <* eof
 
-kValue :: Parser Node
+kValue :: Parser PNode
 kValue  = lexeme $ kNumber <|> kString <|> kBool <|> kHash <|> kList <|> kObject <|> kCall <|> lineComment
 
-kHashItem :: Parser (Text, Node)
+kHashItem :: Parser (Text, PNode)
 kHashItem = do
   key <- kIdentifier
   _ <- colon
   value <- kValue
   return (key, value)
 
-kHash :: Parser Node
+kHash :: Parser PNode
 kHash = do
   pos <- getPos
   _ <- lbrack
@@ -212,7 +213,7 @@ kHash = do
   _ <- rbrack
   return $ KHash pos Untyped items
 
-kList :: Parser Node
+kList :: Parser PNode
 kList = do
   pos <- getPos
   _ <- lblock
@@ -220,17 +221,17 @@ kList = do
   _ <- rblock
   return $ KList pos Untyped items
 
-kKVPair :: Parser a -> Parser (Text, Node)
+kKVPair :: Parser a -> Parser (Text, PNode)
 kKVPair p = do
   name <- kIdentifier
   _ <- p
   body <- kValue
   return (name, body)
 
-kObjectItem :: Parser (Text, Node)
+kObjectItem :: Parser (Text, PNode)
 kObjectItem = kKVPair equal
 
-kObject :: Parser Node
+kObject :: Parser PNode
 kObject = lexeme $ do
   pos <- getPos
   name <- kIdentifier
@@ -239,7 +240,7 @@ kObject = lexeme $ do
   _ <- rbrack
   return $ KObject pos Untyped name body
 
-kTemplate :: Parser Node
+kTemplate :: Parser PNode
 kTemplate = lexeme $ do
   pos <- getPos
   _ <- symbol "%template"
@@ -249,10 +250,10 @@ kTemplate = lexeme $ do
   _ <- rbrack
   return $ KTemplate pos Untyped name body
 
-kTemplateItem :: Parser (Text, KTemplateField)
+kTemplateItem :: Parser (Text, KTemplateField Position Check)
 kTemplateItem = lexeme $ try kTypeTemplateField <|> kNodeTemplateField
 
-kNodeTemplateField :: Parser (Text, KTemplateField)
+kNodeTemplateField :: Parser (Text, KTemplateField Position Check)
 kNodeTemplateField = lexeme $ bimap id N <$> kKVPair equal
 
 kUnionType :: Parser Type
@@ -306,26 +307,26 @@ kType  = kStringType
      <|> kHashType
      <|> (TObjectRef <$> kIdentifier)
 
-kTypeTemplateField :: Parser (Text, KTemplateField)
+kTypeTemplateField :: Parser (Text, KTemplateField Position Check)
 kTypeTemplateField = lexeme $ do
   name <- kIdentifier
   _ <- colon
   body <- kAllType
   return (name, T body)
 
-kParse :: FilePath -> IO [Node]
+kParse :: FilePath -> IO [PNode]
 kParse fn = do
   source <- T.readFile fn
   case parse (sc *> kTopLevel) fn source of
     Left bundle -> error (errorBundlePretty bundle)
     Right xs    -> return xs
 
-kParseAll :: FilePath -> IO [Node]
+kParseAll :: FilePath -> IO [PNode]
 kParseAll fn = collectImports =<< kParse fn
 
-collectImports :: [Node] -> IO [Node]
+collectImports :: [PNode] -> IO [PNode]
 collectImports xs = join <$> traverse inner xs
   where
-    inner :: Node -> IO [Node]
+    inner :: PNode -> IO [PNode]
     inner (KInclude _ _ fn) = kParseAll $ toS fn
     inner x                 = return [x]

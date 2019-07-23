@@ -15,8 +15,8 @@ args x = hsep $ punctuate comma x
 
 kv c (k, v) = pretty k <> c <+> nodeText v
 
-printNodeText :: Node -> IO ()
-printNodeText node = putDoc $ reAnnotate term (nodeText node <> line <> line)
+printNodeText :: Node a b -> IO ()
+printNodeText node = putDoc $ reAnnotate term (nodeText node)
   where
     term "literal"  = color Green
     term "keyword"  = color Blue
@@ -25,12 +25,12 @@ printNodeText node = putDoc $ reAnnotate term (nodeText node <> line <> line)
     term "comment"  = color Red
     term "heredoc"  = color Red
 
-printNodeTexts :: [Node] -> IO ()
+printNodeTexts :: [Node a b] -> IO ()
 printNodeTexts = traverse_ printNodeText
 
 deindent d = column (\x -> hang (-x) d)
 
-nodeText :: Node -> Doc Text
+nodeText :: Node a b -> Doc Text
 nodeText (KString _ _ Literal _ s)    = annotate "literal" $ dquotes $ pretty s
 nodeText (KString _ _ (HereDoc term) _ s)    =
   annotate "heredoc" $ "<<-" <> align (pretty term <> deindent (line <> pretty s)) <> line <> pretty term
@@ -51,12 +51,12 @@ nodeText (KDefine _ _ n (Just a) b) =
   annotate "keyword" "%define" <+> pretty n <> "(" <> args (map pretty a) <> ")" <+> "=" <> line
     <> indent 2 (nodeText b) <> line <> line
 nodeText (KDefine _ _ n Nothing b) =
-  annotate "keyword" "%define" <+> pretty n <+> "=" <> line <> indent 2 (nodeText b) <> line <> line
+  annotate "keyword" "%define" <+> pretty n <+> "=" <+> nodeText b <> line <> line
 nodeText (KCall _ _ n a)     =
   annotate "keyword" ("%" <> pretty n) <> "(" <> args (map nodeText a) <> ")"
 nodeText (KInclude _ _ s)    =
   annotate "keyword" "%include" <+> annotate "literal" (dquotes $ pretty s) <> line <> line
 nodeText (KComment _ _ s)    = annotate "comment" ("#" <> pretty s) <> line
 
-nodeTexts :: [Node] -> Doc Text
+nodeTexts :: [Node a b] -> Doc Text
 nodeTexts xs = vsep $ map nodeText xs

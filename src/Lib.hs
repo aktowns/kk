@@ -6,7 +6,7 @@ import Node
 import Parse
 import Pretty
 
-kRead :: FilePath -> IO [Node]
+kRead :: FilePath -> IO [Node Position Check]
 kRead fp = do
   ast <- kParseAll fp
   return $ evalKK emptyCtx (reduceAll ast)
