@@ -3,6 +3,7 @@ module Parse where
 
 import           Control.Monad              (join)
 import           Data.Bifunctor             (bimap)
+import           Data.Maybe                 (catMaybes)
 import qualified Data.Set                   as Set
 import           Data.String.Conv           (toS)
 import           Data.Text                  (Text)
@@ -19,6 +20,9 @@ import Node
 import Debug.Trace
 
 type Parser = Parsec Void Text
+
+trimnl = dropWhile (=='\n') . reverse . dropWhile (\x -> x =='\n' || x == ' ') . reverse
+trims  = T.dropWhile (\x -> x == ' ' || x == '\n') . T.reverse . T.dropWhile (\x -> x == ' ' || x == '\n') . T.reverse
 
 sc :: Parser ()
 sc = L.space space1 empty empty
@@ -41,14 +45,22 @@ charLiteral = between (char '\'') (char '\'') L.charLiteral
 stringLiteral :: Parser Text
 stringLiteral = T.pack <$> (char '\"' *> manyTill L.charLiteral (char '\"'))
 
-trimnl = dropWhile (=='\n') . reverse . dropWhile (\x -> x =='\n' || x == ' ') . reverse
-
 hereDoc :: Parser (StringType, Text)
 hereDoc = do
   f <- (HereDoc <$ heredoc) <|> (HereDocStripped <$ heredocStrip)
   term <- T.pack <$> some upperChar
   txt <- T.pack . trimnl <$> manyTill L.charLiteral (string term)
   return (f term, txt)
+
+interpolate :: Parser (Text, Node)
+interpolate = do
+  (t, v) <- match $ do
+    pos <- getPos
+    _ <- symbol "${"
+    var <- kIdentifier
+    _ <- symbol "}"
+    return $ KVariable pos Untyped var
+  return (trims t, v)
 
 numberLiteral :: Parser Float
 numberLiteral = lexeme (try L.float <|> (fromIntegral <$> L.decimal))
@@ -123,17 +135,36 @@ lineComment = lexeme $ do
   pos <- getPos
   KComment pos Untyped <$> (string "#" *> takeWhileP (Just "character") (/= '\n'))
 
+collectInterpolations :: Text -> [(Text, Node)]
+collectInterpolations txt =
+  case results of
+    (Left err) -> error (errorBundlePretty err)
+    (Right xs) -> catMaybes xs
+  where
+    ignoreCharacter :: Parser (Maybe (Text, Node))
+    ignoreCharacter = Nothing <$ L.charLiteral
+
+    interpolated :: Parser (Maybe (Text, Node))
+    interpolated    = Just <$> interpolate
+
+    results = parse (many (interpolated <|> ignoreCharacter)) "interpolated string" txt
+
 kNumber :: Parser Node
 kNumber = KNumber <$> getPos <*> pure Untyped <*> numberLiteral
 
 kStringLiteral :: Parser Node
-kStringLiteral = KString <$> getPos <*> pure Untyped <*> pure Literal <*> pure [] <*> stringLiteral
+kStringLiteral = do
+  pos <- getPos
+  str <- stringLiteral
+  let inter = collectInterpolations str
+  return $ KString pos Untyped Literal inter str
 
 kHereDoc :: Parser Node
 kHereDoc = do
   pos <- getPos
   (term, txt) <- hereDoc
-  return $ KString pos Untyped term [] txt
+  let inter = collectInterpolations txt
+  return $ KString pos Untyped term inter txt
 
 kString :: Parser Node
 kString = kStringLiteral <|> kHereDoc
@@ -253,8 +284,6 @@ kNumberType = TNumber <$ symbol "Number"
 
 kBoolType :: Parser Type
 kBoolType = TBool <$ symbol "Bool"
-
-
 
 kAllType :: Parser Type
 kAllType  = kStringType

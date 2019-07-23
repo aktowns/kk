@@ -1,12 +1,17 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 module Eval where
 
 import           Control.Monad.State.Lazy (State, evalState, get, gets, modify, runState)
+import           Data.Bifunctor           (bimap)
 import           Data.Bitraversable       (bitraverse)
 import           Data.HashMap.Strict      (HashMap)
 import qualified Data.HashMap.Strict      as HM
 import           Data.Maybe               (catMaybes, fromMaybe)
 import           Data.Text                (Text)
+import qualified Data.Text                as T
 import           Data.Void                (Void)
+
+import Debug.Trace (trace)
 
 import Node
 
@@ -46,6 +51,13 @@ reduceFn (t, x) = do
   x' <- reduce x
   return $ bitraverse pure id (t, x')
 
+forceString :: Maybe Node -> Text
+forceString (Just (KString _ _ _ _ s)) = s
+forceString _                          = error "A type of string was expected"
+
+reduceString :: Text -> [(Text, Maybe Node)] -> Text
+reduceString txt i = foldl (\b (x,v) -> T.replace x (forceString v) b) txt i
+
 reduce :: Node -> KK (Maybe Node)
 reduce (KObject p t n body) = Just . KObject p t n . catMaybes <$> mapM reduceFn body
 reduce (KList p t xs)       = Just . KList p t . catMaybes <$> mapM reduce xs
@@ -53,6 +65,9 @@ reduce (KDefine _ _ n a b)  = Nothing <$ envInsert n (a, b)
 --reduce (KTemplate _ _ _ _)  = pure $ Just
 reduce (KCall _ _ n a)      = envApply n a
 reduce (KVariable _ _ n)    = Just <$> varGet n
+reduce (KString p t n i s)  = do
+  vars <- traverse (bitraverse pure reduce) i
+  return $ Just . KString p t n [] $ reduceString s vars
 reduce k                    = pure $ Just k
 
 reduceAll :: [Node] -> KK [Node]
