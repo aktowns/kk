@@ -29,6 +29,11 @@ envInsert n a = do
   e <- gets env
   modify (\s -> s {env = HM.insert n a e})
 
+varInsert :: Text -> Node -> KK ()
+varInsert n a = do
+  e <- gets var
+  modify (\s -> s {var = HM.insert n a e})
+
 envGet :: Text -> KK ([Text], Node)
 envGet n = do
   e <- gets env
@@ -61,13 +66,17 @@ reduceString txt i = foldl (\b (x,v) -> T.replace x (forceString v) b) txt i
 reduce :: Node -> KK (Maybe Node)
 reduce (KObject p t n body) = Just . KObject p t n . catMaybes <$> mapM reduceFn body
 reduce (KList p t xs)       = Just . KList p t . catMaybes <$> mapM reduce xs
-reduce (KDefine _ _ n a b)  = Nothing <$ envInsert n (a, b)
---reduce (KTemplate _ _ _ _)  = pure $ Just
+reduce (KDefine _ _ n a b)  = 
+  Nothing <$ case a of
+    (Just a') -> envInsert n (a', b)
+    Nothing   -> varInsert n b
+reduce (KTemplate _ _ _ _)  = pure Nothing
 reduce (KCall _ _ n a)      = envApply n a
 reduce (KVariable _ _ n)    = Just <$> varGet n
 reduce (KString p t n i s)  = do
   vars <- traverse (bitraverse pure reduce) i
   return $ Just . KString p t n [] $ reduceString s vars
+reduce (KComment _ _ _)     = pure Nothing
 reduce k                    = pure $ Just k
 
 reduceAll :: [Node] -> KK [Node]

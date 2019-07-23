@@ -56,7 +56,7 @@ interpolate :: Parser (Text, Node)
 interpolate = do
   (t, v) <- match $ do
     pos <- getPos
-    _ <- symbol "${"
+    _ <- symbol "%{"
     var <- kIdentifier
     _ <- symbol "}"
     return $ KVariable pos Untyped var
@@ -118,9 +118,11 @@ kDefine = lexeme $ do
   pos  <- getPos
   _    <- symbol "%define"
   name <- kIdentifier
-  _    <- lparen
-  args <- kIdentifier `sepBy` comma
-  _    <- rparen
+  args <- optional $ do
+    _    <- lparen
+    arglist <- kIdentifier `sepBy` comma
+    _    <- rparen
+    return arglist
   _    <- equal
   KDefine pos Untyped name args <$> kValue
 
@@ -175,24 +177,25 @@ kBool = KBool <$> getPos <*> pure Untyped <*> ((True <$ symbol "true") <|> (Fals
 kIdentifier :: Parser Text
 kIdentifier = lexeme (T.pack <$> ((:) <$> letterChar <*> many alphaNumChar <?> "identifier"))
 
-kVariable :: Parser Node
-kVariable = KVariable <$> getPos <*> pure Untyped <*> (dollar *> kIdentifier) <?> "variable"
-
 kCall :: Parser Node
 kCall = lexeme $ do
   pos <- getPos
   _ <- percent
   name <- kIdentifier
-  _ <- lparen
-  args <- kValue `sepBy` comma
-  _ <- rparen
-  return $ KCall pos Untyped name args
+  args <- optional $ do
+    _ <- lparen
+    arglist <- kValue `sepBy` comma
+    _ <- rparen
+    return arglist
+  return $ case args of
+    Just a  -> KCall pos Untyped name a
+    Nothing -> KVariable pos Untyped name
 
 kTopLevel :: Parser [Node]
 kTopLevel = lexeme $ many (kDefine <|> kInclude <|> kTemplate <|> kObject <|> kCall <|> lineComment) <* eof
 
 kValue :: Parser Node
-kValue  = lexeme $ kNumber <|> kString <|> kBool <|> kHash <|> kList <|> kObject <|> kVariable <|> kCall <|> lineComment
+kValue  = lexeme $ kNumber <|> kString <|> kBool <|> kHash <|> kList <|> kObject <|> kCall <|> lineComment
 
 kHashItem :: Parser (Text, Node)
 kHashItem = do

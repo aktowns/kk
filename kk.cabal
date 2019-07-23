@@ -33,6 +33,7 @@ library
                      , mtl
                      , prettyprinter
                      , prettyprinter-ansi-terminal
+                     , scientific
                      , string-conv
                      , text
                      , unordered-containers

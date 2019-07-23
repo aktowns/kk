@@ -45,7 +45,7 @@ data Node = KObject   Position Check Text ![(Text, Node)]
           | KNumber   Position Check Float
           | KBool     Position Check Bool
           | KComment  Position Check Text
-          | KDefine   Position Check Text [Text] !Node
+          | KDefine   Position Check Text (Maybe [Text]) !Node
           | KCall     Position Check Text ![Node]
           | KInclude  Position Check Text
           | KVariable Position Check Text

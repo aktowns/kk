@@ -3,17 +3,19 @@
 
 %include "kubernetes.kk"
 
+%define base = "pod"
+
 # An example function, that generates an image block
 %define image(name, commands) =
-  Image { image = $name
-          command = $commands
+  Image { image = %name
+          command = %commands
           imagePullPolicy = "IfNotPresent"
-          name = $name
+          name = %name
         }
 
 # Lets make a pod
 Pod {
-  metadata = MetaObj { name   = "busybox"
+  metadata = MetaObj { name   = "%{base}-busybox"
                        labels = { app: "busybox" }
                      }
   spec     = PodSpec {

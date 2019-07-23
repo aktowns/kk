@@ -47,9 +47,11 @@ nodeText (KObject _ _ n xs) =
      <> (line <> rbrace))
 nodeText (KTemplate _ _ n x) = annotate "keyword" "%template" <+> pretty n
 nodeText (KVariable _ _ s)   = annotate "variable" ("$" <> pretty s)
-nodeText (KDefine _ _ n a b) =
+nodeText (KDefine _ _ n (Just a) b) =
   annotate "keyword" "%define" <+> pretty n <> "(" <> args (map pretty a) <> ")" <+> "=" <> line
     <> indent 2 (nodeText b) <> line <> line
+nodeText (KDefine _ _ n Nothing b) =
+  annotate "keyword" "%define" <+> pretty n <+> "=" <> line <> indent 2 (nodeText b) <> line <> line
 nodeText (KCall _ _ n a)     =
   annotate "keyword" ("%" <> pretty n) <> "(" <> args (map nodeText a) <> ")"
 nodeText (KInclude _ _ s)    =
