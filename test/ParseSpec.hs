@@ -28,7 +28,7 @@ spec = do
     it "correctly parses floating point" $ subject "5.0" `shouldParse` 5.0
   describe "Strings" $ do
     let subject = parse kString ""
-    it "correctly parses" $ subject "\"abc\"" `parseSatisfies` (\(KString _ _ x) -> x == "abc")
+    it "correctly parses" $ subject "\"abc\"" `parseSatisfies` (\(KString _ _ _ _ x) -> x == "abc")
   describe "Numbers" $ do
     let subject = parse kNumber ""
     it "correctly parses" $ subject "5" `parseSatisfies` (\(KNumber _ _ x) -> x == 5)

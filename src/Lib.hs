@@ -1,21 +1,23 @@
 module Lib where
 
+import Data.Text (Text)
+
 import Compile
 import Eval
 import Node
 import Parse
 import Pretty
 
-kRead :: FilePath -> IO [Node Position Check]
-kRead fp = do
+kRead :: FilePath -> [(Text, Text)] -> IO [Node Position Check]
+kRead fp env = do
   ast <- kParseAll fp
-  return $ evalKK emptyCtx (reduceAll ast)
+  return $ evalKK (ctxFromKV env) (reduceAll ast)
 
-kCompile :: FilePath -> IO String
-kCompile fp = toYaml <$> kRead fp
+kCompile :: FilePath -> [(Text, Text)] -> IO String
+kCompile fp env = toYaml <$> kRead fp env
 
-kCompileJson :: FilePath -> IO String
-kCompileJson fp = toJson <$> kRead fp
+kCompileJson :: FilePath -> [(Text, Text)] -> IO String
+kCompileJson fp env = toJson <$> kRead fp env
 
 kFormat :: FilePath -> IO ()
 kFormat fp = printNodeTexts =<< kParse fp

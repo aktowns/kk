@@ -1,25 +1,33 @@
 # KK - a simple typed compile-to-yaml language
-# This example is a kubernetes pod
+#
+# This example is a kubernetes pod, customized by passed in arguments
 
 %include "kubernetes.kk"
 
-%define base = "pod"
+%define name  = %env:name
+%define image = %env:image
+
+#---------------------------------------
+
+%define appname = "pod-%{name}"
+
+%define IfNotPresent = "IfNotPresent"
 
 # An example function, that generates an image block
-%define image(name, commands) =
-  Image { image = %name
+%define podImage(name, commands) =
+  Image { image = %image
           command = %commands
-          imagePullPolicy = "IfNotPresent"
+          imagePullPolicy = %IfNotPresent
           name = %name
         }
 
 # Lets make a pod
 Pod {
-  metadata = MetaObj { name   = "%{base}-busybox"
-                       labels = { app: "busybox" }
+  metadata = MetaObj { name   = %appname
+                       labels = { app: %image }
                      }
   spec     = PodSpec {
-    containers = [ %image("busybox", ["sleep", 3600.0]) ]
+    containers = [ %podImage("busybox", ["sleep", 3600.0]) ]
     restartPolicy = "Always"
   }
 }

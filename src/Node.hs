@@ -10,7 +10,10 @@ data KTemplateField a b = N (Node a b)
                         | T Type
                         deriving (Show, Eq)
 
-data Position = Position { line :: Int, column :: Int, file :: String } deriving (Show, Eq)
+data Position = Position { line   :: Int
+                         , column :: Int
+                         , file   :: String
+                         } deriving (Show, Eq)
 
 data Type = TString
           | TNumber
@@ -34,9 +37,14 @@ ppType (TObject n ty)     = toS n ++ " { " ++ ppType ty ++ " }"
 ppType (TIntersection xs) = intercalate ", " $ Set.toList $ Set.map (\(n,v) -> toS n ++ ": " ++ ppType v) xs
 ppType (TUnion xs)        = intercalate "|" $ Set.toList $ Set.map ppType xs
 
-data Check = Typed Type | Untyped deriving (Show, Eq)
+data Check = Typed Type 
+           | Untyped 
+           deriving (Show, Eq)
 
-data StringType = Literal | HereDoc Text | HereDocStripped Text deriving (Show, Eq)
+data StringType = Literal
+                | HereDoc Text
+                | HereDocStripped Text
+                deriving (Show, Eq)
 
 data Node a b = KObject   a b Text [(Text, Node a b)]
               | KList     a b [Node a b]

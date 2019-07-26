@@ -51,6 +51,7 @@ executable kk
                      , kk
                      , cmdargs
                      , haskell-lsp
+                     , text
   hs-source-dirs:      app
   default-language:    Haskell2010
 

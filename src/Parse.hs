@@ -178,11 +178,18 @@ kBool = KBool <$> getPos <*> pure Untyped <*> ((True <$ symbol "true") <|> (Fals
 kIdentifier :: Parser Text
 kIdentifier = lexeme (T.pack <$> ((:) <$> letterChar <*> many alphaNumChar <?> "identifier"))
 
+kSepIdentifier :: Parser Text
+kSepIdentifier = do
+  e <- kIdentifier
+  c <- colon
+  v <- kIdentifier
+  return $ T.concat [e,c,v]
+
 kCall :: Parser PNode
 kCall = lexeme $ do
   pos <- getPos
   _ <- percent
-  name <- kIdentifier
+  name <- try kSepIdentifier <|> kIdentifier
   args <- optional $ do
     _ <- lparen
     arglist <- kValue `sepBy` comma

@@ -1,11 +1,15 @@
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE OverloadedStrings  #-}
 {-# LANGUAGE RecordWildCards    #-}
 {-# OPTIONS_GHC -fno-cse #-}
 module Main where
 
 import Lib
 
-import System.Console.CmdArgs
+import           Data.Bifunctor         (bimap)
+import           Data.List              (unfoldr)
+import qualified Data.Text              as T
+import           System.Console.CmdArgs
 
 data OutFormat = YAML | JSON deriving (Show, Data, Typeable, Eq)
 
@@ -14,6 +18,7 @@ instance Default OutFormat where
 
 data KK = Compile { inFile  :: FilePath
                   , outFile :: Maybe FilePath
+                  , env     :: [String]
                   , format  :: OutFormat
                   }
         | Format { inFile  :: FilePath
@@ -31,6 +36,7 @@ fout x = x &= typ "FILE"  &= help "File to output, defaults to stdout"
 
 compileMode = Compile { inFile = fin def
                       , outFile = fout def
+                      , env = def &= typ "NAME=[VALUE]" &= help "Set a variable in %env"
                       , format  = def &= typ "YAML|JSON" &= help "Format of the output file"
                       } &= help "compiles your kk file to either json or yaml"
 
@@ -51,9 +57,10 @@ mode = cmdArgsMode $ modes [compileMode, formatMode, lintMode, lspMode]
   &= summary "kk v0.0.0, (C) Ashley Towns"
 
 doCompile Compile{..} = do
+  let envs = bimap id (T.drop 1) <$> T.breakOn "=" . T.pack <$> env
   output <- case format of
-    YAML -> kCompile inFile
-    JSON -> kCompileJson inFile
+    YAML -> kCompile inFile envs
+    JSON -> kCompileJson inFile envs
   case outFile of
     Just fn -> writeFile fn output
     Nothing -> putStrLn output
